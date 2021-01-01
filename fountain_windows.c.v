@@ -197,3 +197,64 @@ const (
 	spif_updateinifile = 0x0001
 	spif_sendchange    = 0x0002
 )
+
+fn create_dc() DrawContext {
+	return DrawContext(C.CreateCompatibleDC(C.NULL))
+}
+
+
+fn C.GetCharWidth32W() bool
+
+fn C.GetCharABCWidthsW() bool
+
+
+struct Fixed {
+	fract i16
+	value i16
+}
+
+struct Mat2 {
+	a Fixed 
+	b Fixed 
+	c Fixed 
+	d Fixed 
+}
+
+fn default_mat2() Mat2 {
+	return Mat2 {
+		a: {fract: 0, value: 1}
+		b: {fract: 0, value: 0}
+		c: {fract: 0, value: 0}
+		d: {fract: 0, value: 1}
+	}
+}
+
+const (
+	ggo_gray8_bitmap = 8
+	opaque  = 2
+	transparent = 1
+)
+
+fn C.GetGlyphOutlineW() int
+
+
+struct Point {
+	x int
+	y int
+}
+
+struct GlyphMetrics {
+	black_box_x u32
+	black_box_y u32
+	glyph_origin Point
+	cell_x i16
+	cell_y i16
+}
+
+fn C.SetBkColor()
+fn C.SetTextColor()
+fn C.SetBkMode()
+fn C.ExtTextOutW()
+fn C.MoveToEx()
+
+

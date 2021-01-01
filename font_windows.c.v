@@ -10,6 +10,7 @@ mut:
 	width   int
 	height  int
 	ascent  int
+	cache LruCache
 }
 
 struct FontConfig {
@@ -65,4 +66,65 @@ fn (mut f Font) create_bitmap() ? {
 		return error('Unable to create bitmap')
 	}
 	f.bitmap.@select()
+}
+
+
+fn (mut f Font) metrics(ch rune) ?Metric {
+	if cached := f.cache.get(ch) {
+		return cached.metric
+	}
+
+	// we dont have a cached version
+	// so go get it now
+
+	// first try GetCharWidth32W
+	// then try GetCharABCWidthsW
+	m := Metric{}
+	if C.GetCharABCWidthsW(f.context, ch, ch, &m) {
+		return m
+	}
+	if C.GetCharWidth32W(f.context, ch, ch, &m) {
+		return m
+	}
+
+	return none
+}
+
+fn (mut f Font) glyph(ch rune) ?Glyph {
+	if cached := f.cache.get(ch) {
+		return cached
+	}
+	metrics := f.metrics(ch)?
+
+	// make sure our font is active
+	C.SelectObject(f.context, f.handle)
+	
+	wide := metrics.b
+	tall := f.height
+
+	mat := default_mat2()
+	glyph_metrics := GlyphMetrics{}
+
+	println('$ch ${int(ch)}')
+	ch16 := u16(ch)
+	bytes_needed := C.GetGlyphOutlineW(f.context, ch16, ggo_gray8_bitmap, &glyph_metrics, 0, C.NULL, &mat)
+	println('$bytes_needed')
+
+	if bytes_needed > 0 {
+		// TODO does this ever happen?
+		panic('This path is not implemented yet...')
+	} else {
+		// render to bitmap and use that
+		C.SetBkColor(f.context, 0)
+		C.SetTextColor(f.context, -1)
+		C.SetBkMode(f.context, opaque)
+
+		// draw the character
+		C.MoveToEx(f.context, -metrics.a, 0, C.NULL)
+		C.ExtTextOutW(f.context, 0, 0, 0, 0, C.NULL, &ch16, 1, C.NULL)
+
+		C.SetBkMode(f.context, transparent)
+	}
+
+	return none
 }

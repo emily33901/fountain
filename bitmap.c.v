@@ -36,7 +36,7 @@ fn new_bitmap(config BitmapConfig) ?Bitmap {
 	temp := voidptr(0)
 	handle := C.CreateDIBSection(config.context, &C.BITMAPINFO(&header), dib_rgb_colors,
 		&temp, C.NULL, 0)
-	println('${os.get_error_msg(int(C.GetLastError()))}')
+	// println('${os.get_error_msg(int(C.GetLastError()))}')
 	if handle == 0 {
 		return none
 	}
