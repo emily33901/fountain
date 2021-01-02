@@ -1,4 +1,5 @@
 module main
+
 import os
 
 fn C.GetTextMetrics() bool
@@ -8,13 +9,11 @@ mut:
 	context DrawContext
 	handle  Handle
 	bitmap  Bitmap
-	
 	width   int
 	height  int
 	ascent  int
-	
 	// glyph cache
-	cache MetricsCache
+	cache   MetricsCache
 }
 
 struct FontConfig {
@@ -44,7 +43,6 @@ fn new_font(config FontConfig) ?Font {
 	// 	println('Failed SystemParametersInfo 2')
 	// 	println('${os.get_error_msg(int(C.GetLastError()))}')
 	// }
-
 	dc := create_dc()
 	font_handle := Handle(C.CreateFontA(config.height, config.width, config.escapement,
 		config.orientation, config.weight, config.italic, config.underline, config.strikeout,
@@ -57,7 +55,7 @@ fn new_font(config FontConfig) ?Font {
 	C.SetMapMode(dc, mm_text)
 	C.SelectObject(dc, font_handle)
 	C.SetTextAlign(dc, ta_left)
-	tm := C.TEXTMETRICW{}
+	tm := TextMetrics{}
 	if !C.GetTextMetrics(dc, &tm) {
 		// failed to get metrics so we have no idea what the sizes
 		// are which is pretty useless
@@ -65,11 +63,11 @@ fn new_font(config FontConfig) ?Font {
 	}
 	mut new_font := Font{
 		context: dc
-		height: tm.tmHeight
-		width: tm.tmMaxCharWidth
-		ascent: tm.tmAscent
+		height: tm.height
+		width: tm.max_char_width
+		ascent: tm.ascent
 		handle: font_handle
-		cache: new_lru_cache(1000)
+		cache: new_metrics_cache(1000)
 	}
 	new_font.create_bitmap() ?
 	return new_font
@@ -82,15 +80,12 @@ fn (mut f Font) create_bitmap() ? {
 	f.bitmap.@select()
 }
 
-
 fn (mut f Font) metrics(ch rune) ?Metrics {
 	if cached := f.cache.get(ch) {
 		return cached
 	}
-
 	// we dont have a cached version
 	// so go get it now
-
 	// first try GetCharWidth32W
 	// then try GetCharABCWidthsW
 	m := Metrics{}
@@ -98,55 +93,41 @@ fn (mut f Font) metrics(ch rune) ?Metrics {
 		f.cache.add(ch, m)
 		return m
 	}
-
 	return none
 }
 
 fn (mut f Font) glyph_data(ch rune) ?GlyphData {
-	metrics := f.metrics(ch)?
-
+	metrics := f.metrics(ch) ?
 	// make sure our font is active
 	C.SelectObject(f.context, f.handle)
-	
 	mut wide := f.width
 	mut tall := f.height
-
 	mat := default_mat2()
 	glyph_metrics := WinGlyphMetrics{}
-
 	ch16 := u16(ch)
-
 	C.SetBkColor(f.context, 0)
 	C.SetTextColor(f.context, 16777215) // 55 | (255 << 8) | (255 << 16)
 	C.SetBkMode(f.context, opaque)
-
-	rect := Rect {
-		0 0 f.width f.height
-	}
-
+	rect := Rect{0, 0, f.width, f.height}
 	// draw the character
 	if !C.ExtTextOutW(f.context, 0, 0, opaque, &rect, &ch16, 1, C.NULL) {
 		println('failed!')
 		println('${os.get_error_msg(int(C.GetLastError()))}')
 		return none
 	}
-
 	C.SetBkMode(f.context, transparent)
-
 	// copy the glyph from the bitmap
 	mut glyph := []byte{len: (wide * tall * 4), init: 0}
 	copy(glyph, f.bitmap.data)
-
 	// set the alphas properly
 	for i := 0; i < tall * wide * 4; i += 4 {
-		r := glyph[i+0]
-		g := glyph[i+1]
-		b := glyph[i+2]
-		glyph[i+3] = byte((f32(r) * 0.34) + (f32(g) * 0.55) + (f32(b) * 0.11))
+		r := glyph[i + 0]
+		g := glyph[i + 1]
+		b := glyph[i + 2]
+		glyph[i + 3] = byte((f32(r) * 0.34) + (f32(g) * 0.55) + (f32(b) * 0.11))
 	}
-
-	return GlyphData {
-		metrics: metrics,
+	return GlyphData{
+		metrics: metrics
 		data: glyph
 	}
 }

@@ -55,13 +55,13 @@ mut:
 	// max length of the cache
 	max_len int
 	// the hash of nodes
-	cache    map[rune]&LruListNode
+	cache   map[rune]&LruListNode
 	// the list references
 	front   &LruListNode
 	back    &LruListNode
 }
 
-fn new_lru_cache(max_len int) MetricsCache {
+fn new_metrics_cache(max_len int) MetricsCache {
 	return MetricsCache{
 		max_len: max_len
 		front: voidptr(0)
@@ -87,7 +87,6 @@ fn (mut c MetricsCache) add(key rune, value Metrics) {
 		// add the new value to the front
 		mut node := new_node(key, value)
 		c.front = promote(mut node, mut c.front)
-
 		c.cache[key] = node
 		if c.cache.len == 1 {
 			c.back = node

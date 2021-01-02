@@ -41,9 +41,8 @@ fn new_bitmap(config BitmapConfig) ?Bitmap {
 	if handle == 0 {
 		return none
 	}
-	//len := ((config.width * config.bits + 31) / 32) * 4 * config.height
+	// len := ((config.width * config.bits + 31) / 32) * 4 * config.height
 	len := config.width * config.height * 4
-	
 	return Bitmap{
 		context: config.context
 		handle: handle

@@ -18,7 +18,7 @@ pub:
 struct GlyphData {
 pub:
 	metrics Metrics
-	data []byte
+	data    []byte
 }
 
 pub fn (g GlyphData) total_size() int {

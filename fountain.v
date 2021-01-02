@@ -2,7 +2,6 @@ module main
 
 import gg
 import gx
-
 import sokol.sapp
 import sokol.sgl
 
@@ -12,7 +11,6 @@ const (
 )
 
 fn draw_image(ctx &gg.Context, x f32, y f32, width f32, height f32, sg_img &C.sg_image) {
-
 	u0 := f32(0.0)
 	v0 := f32(0.0)
 	u1 := f32(1.0)
@@ -21,11 +19,12 @@ fn draw_image(ctx &gg.Context, x f32, y f32, width f32, height f32, sg_img &C.sg
 	y0 := f32(y) * ctx.scale
 	x1 := f32(x + width) * ctx.scale
 	mut y1 := f32(y + height) * ctx.scale
-/*	if height == 0 {
+	/*
+	if height == 0 {
 		scale := f32(img.width) / f32(width)
 		y1 = f32(y + int(f32(img.height) / scale)) * ctx.scale
 	}
-*/
+	*/
 	//
 	sgl.load_pipeline(ctx.timage_pip)
 	sgl.enable_texture()
@@ -42,19 +41,17 @@ fn draw_image(ctx &gg.Context, x f32, y f32, width f32, height f32, sg_img &C.sg
 
 struct Glyph {
 	GlyphData
-pub mut:
+mut:
 	image C.sg_image
 }
 
 struct App {
 mut:
 	made_image bool
-	font Font
-	
-	gs []Glyph
-
-	gg &gg.Context
-	ready bool
+	font       Font
+	gs         []Glyph
+	gg         &gg.Context
+	ready      bool
 }
 
 fn init(mut app App) {
@@ -63,8 +60,8 @@ fn init(mut app App) {
 			width: app.font.width
 			height: app.font.height
 			num_mipmaps: 0
-			min_filter:   .linear
-			mag_filter:   .linear
+			min_filter: .linear
+			mag_filter: .linear
 			//*****************************************
 			// usage: .dynamic        // DECOMENT THIS CRASH THE PROGRAM
 			//*****************************************
@@ -88,90 +85,195 @@ fn draw_frame(mut app App) {
 		return
 	}
 	app.gg.begin()
-
 	sgl.defaults()
 	sgl.matrix_mode_projection()
 	sgl.ortho(0.0, f32(sapp.width()), f32(sapp.height()), 0.0, -1.0, 1.0)
 	sgl.c4b(0, 0, 0, 128) // black
-
 	mut offset := 10
 	mut y_offset := 10
-
 	mut i := 0
-
 	for glyph in app.gs {
 		draw_image(app.gg, offset, y_offset, app.font.width, app.font.height, glyph.image)
-
 		offset += glyph.total_size()
-
 		i++
-
 		if i % 10 == 0 {
 			y_offset += app.font.ascent
 			offset = 10
 		}
-
 	}
-
 	app.gg.end()
-} 
+}
 
 [console]
 fn main() {
 	mut font := new_font(height: 100, face_name: 'Tahoma') or { panic('failed to create font') }
-
 	chars := [
-	`㈀`,  `㈁`,  `㈂`,  `㈃`,  `㈄`,  `㈅`,  `㈆`,  `㈇`,  `㈈`,  `㈉`,  `㈊`,  `㈋`,  `㈌`,  `㈍`,  `㈎`,  `㈏`,  `㈐`,  `㈑`,  `㈒`,  `㈓`,  `㈔`,  `㈕`,  `㈖`,  `㈗`,  `㈘`,  `㈙`,  `㈚`,  `㈛`,  `㈜`,  `㈠`,  `㈡`,  `㈢`,  `㈣`,  `㈤`,  `㈥`,  `㈦`,  `㈧`,  `㈨`,  `㈩`,  `㈪`,  `㈫`,  `㈬`,  `㈭`,  `㈮`,  `㈯`,  `㈰`,  `㈱`,  `㈲`,  `㈳`,  `㈴`,  `㈵`,  `㈶`,  `㈷`,  `㈸`,  `㈹`,  `㈺`,  `㈻`,  `㈼`,  `㈽`,  `㈾`,  `㈿`,  `㉀`,  `㉁`,  `㉂`,  `㉃`,  `㉠`,  `㉡`,  `㉢`,  `㉣`,  `㉤`,  `㉥`,  `㉦`,  `㉧`,  `㉨`,  `㉩`,  `㉪`,  `㉫`,  `㉬`,  `㉭`,  `㉮`,  `㉯`,  `㉰`,  `㉱`,  `㉲`,  `㉳`,  `㉴`,  `㉵`,  `㉶`,  `㉷`,  `㉸`,  `㉹`,  `㉺`,  `㉻`,  `㉿`,  `㊀`,  `㊁`,  `㊂`,  `㊃`,  `㊄`,  `㊅`,  `㊆`,  `㊇`,  `㊈`,  `㊉`,  `㊊`,  `㊋`,  `㊌`,  `㊍`,  `㊎`,  `㊏`,  `㊐`,  `㊑`,  `㊒`,  `㊓`,  `㊔`,  `㊕`,  `㊖`,  `㊗`,  `㊘`,  `㊙`,  `㊚`,  `㊛`,  `㊜`,  `㊝`,  `㊞`,  `㊟`,  `㊠`,  `㊡`, 
+		`㈀`,
+		`㈁`,
+		`㈂`,
+		`㈃`,
+		`㈄`,
+		`㈅`,
+		`㈆`,
+		`㈇`,
+		`㈈`,
+		`㈉`,
+		`㈊`,
+		`㈋`,
+		`㈌`,
+		`㈍`,
+		`㈎`,
+		`㈏`,
+		`㈐`,
+		`㈑`,
+		`㈒`,
+		`㈓`,
+		`㈔`,
+		`㈕`,
+		`㈖`,
+		`㈗`,
+		`㈘`,
+		`㈙`,
+		`㈚`,
+		`㈛`,
+		`㈜`,
+		`㈠`,
+		`㈡`,
+		`㈢`,
+		`㈣`,
+		`㈤`,
+		`㈥`,
+		`㈦`,
+		`㈧`,
+		`㈨`,
+		`㈩`,
+		`㈪`,
+		`㈫`,
+		`㈬`,
+		`㈭`,
+		`㈮`,
+		`㈯`,
+		`㈰`,
+		`㈱`,
+		`㈲`,
+		`㈳`,
+		`㈴`,
+		`㈵`,
+		`㈶`,
+		`㈷`,
+		`㈸`,
+		`㈹`,
+		`㈺`,
+		`㈻`,
+		`㈼`,
+		`㈽`,
+		`㈾`,
+		`㈿`,
+		`㉀`,
+		`㉁`,
+		`㉂`,
+		`㉃`,
+		`㉠`,
+		`㉡`,
+		`㉢`,
+		`㉣`,
+		`㉤`,
+		`㉥`,
+		`㉦`,
+		`㉧`,
+		`㉨`,
+		`㉩`,
+		`㉪`,
+		`㉫`,
+		`㉬`,
+		`㉭`,
+		`㉮`,
+		`㉯`,
+		`㉰`,
+		`㉱`,
+		`㉲`,
+		`㉳`,
+		`㉴`,
+		`㉵`,
+		`㉶`,
+		`㉷`,
+		`㉸`,
+		`㉹`,
+		`㉺`,
+		`㉻`,
+		`㉿`,
+		`㊀`,
+		`㊁`,
+		`㊂`,
+		`㊃`,
+		`㊄`,
+		`㊅`,
+		`㊆`,
+		`㊇`,
+		`㊈`,
+		`㊉`,
+		`㊊`,
+		`㊋`,
+		`㊌`,
+		`㊍`,
+		`㊎`,
+		`㊏`,
+		`㊐`,
+		`㊑`,
+		`㊒`,
+		`㊓`,
+		`㊔`,
+		`㊕`,
+		`㊖`,
+		`㊗`,
+		`㊘`,
+		`㊙`,
+		`㊚`,
+		`㊛`,
+		`㊜`,
+		`㊝`,
+		`㊞`,
+		`㊟`,
+		`㊠`,
+		`㊡`,
 	]
-
 	mut gs := []Glyph{cap: chars.len}
-
 	for c in chars {
 		data := font.glyph_data(rune(c)) or {
 			panic('Cant render this character')
 			return
 		}
-
-		g := Glyph {
+		g := Glyph{
 			GlyphData: data
 		}
-
 		gs << g
 	}
-
 	// test := gs[5]
-
 	// for i := 0; i < test.data.len; i += 4 {
 	// 	if i % (font.width*4) == 0 {
 	// 		println('')
 	// 	}
-
 	// 	if test.data[i+3] > 0 {
 	// 		print('x')
 	// 	} else {
 	// 		print(' ')
 	// 	}
 	// }
-
-	mut a := &App {
+	mut a := &App{
 		font: font
 		gs: gs
 		gg: voidptr(0)
 	}
-
-	a.gg = gg.new_context({
-			width: win_width
-			height: win_height
-			use_ortho: true
-			create_window: true
-			window_title: 'test test test'
-			user_data: a
-			bg_color: gx.black
-			frame_fn: draw_frame
-			init_fn: init
-		})
-
+	a.gg = gg.new_context(
+		width: win_width
+		height: win_height
+		use_ortho: true
+		create_window: true
+		window_title: 'test test test'
+		user_data: a
+		bg_color: gx.black
+		frame_fn: draw_frame
+		init_fn: init
+	)
 	a.gg.run()
 }
-
-

@@ -19,28 +19,28 @@ const (
 	_space = 0
 )
 
-[typedef]
-struct C.TEXTMETRICW {
-	tmHeight           int
-	tmAscent           int
-	tmDescent          int
-	tmInternalLeading  int
-	tmExternalLeading  int
-	tmAveCharWidth     int
-	tmMaxCharWidth     int
-	tmWeight           int
-	tmOverhang         int
-	tmDigitizedAspectX int
-	tmDigitizedAspectY int
-	tmFirstChar        u16
-	tmLastChar         u16
-	tmDefaultChar      u16
-	tmBreakChar        u16
-	tmItalic           byte
-	tmUnderlined       byte
-	tmStruckOut        byte
-	tmPitchAndFamily   byte
-	tmCharSet          byte
+struct TextMetrics {
+pub:
+	height             int
+	ascent             int
+	descent            int
+	internal_leading   int
+	external_leading   int
+	ave_char_width     int
+	max_char_width     int
+	weight             int
+	overhang           int
+	digitized_aspect_x int
+	digitized_aspect_y int
+	first_char         u16
+	last_char          u16
+	default_char       u16
+	break_char         u16
+	italic             byte
+	underlined         byte
+	struck_out         byte
+	pitch_and_family   byte
+	char_set           byte
 }
 
 struct C.LOGFONTW {
@@ -196,8 +196,8 @@ const (
 fn C.SystemParametersInfoW() bool
 
 const (
-	spif_updateinifile = 0x0001
-	spif_sendchange    = 0x0002
+	spif_updateinifile        = 0x0001
+	spif_sendchange           = 0x0002
 	fe_fontsmoothingcleartype = 0x0002
 )
 
@@ -205,11 +205,9 @@ fn create_dc() DrawContext {
 	return DrawContext(C.CreateCompatibleDC(C.NULL))
 }
 
-
 fn C.GetCharWidth32W() bool
 
 fn C.GetCharABCWidthsW() bool
-
 
 struct Fixed {
 	fract i16
@@ -217,29 +215,40 @@ struct Fixed {
 }
 
 struct Mat2 {
-	a Fixed 
-	b Fixed 
-	c Fixed 
-	d Fixed 
+	a Fixed
+	b Fixed
+	c Fixed
+	d Fixed
 }
 
 fn default_mat2() Mat2 {
-	return Mat2 {
-		a: {fract: 0, value: 1}
-		b: {fract: 0, value: 0}
-		c: {fract: 0, value: 0}
-		d: {fract: 0, value: 1}
+	return Mat2{
+		a: {
+			fract: 0
+			value: 1
+		}
+		b: {
+			fract: 0
+			value: 0
+		}
+		c: {
+			fract: 0
+			value: 0
+		}
+		d: {
+			fract: 0
+			value: 1
+		}
 	}
 }
 
 const (
 	ggo_gray8_bitmap = 8
-	opaque  = 2
-	transparent = 1
+	opaque           = 2
+	transparent      = 1
 )
 
 fn C.GetGlyphOutlineW() int
-
 
 struct Point {
 	x int
@@ -247,23 +256,26 @@ struct Point {
 }
 
 struct WinGlyphMetrics {
-	black_box_x u32
-	black_box_y u32
+	black_box_x  u32
+	black_box_y  u32
 	glyph_origin Point
-	cell_x i16
-	cell_y i16
+	cell_x       i16
+	cell_y       i16
 }
 
 fn C.SetBkColor()
+
 fn C.SetTextColor()
+
 fn C.SetBkMode()
+
 fn C.ExtTextOutW() bool
+
 fn C.MoveToEx() bool
 
-
 struct Rect {
-	left int
-	right int
-	top int
+	left   int
+	right  int
+	top    int
 	bottom int
 }
