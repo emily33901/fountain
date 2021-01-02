@@ -3,8 +3,8 @@ module main
 // node in the list
 struct LruListNode {
 pub:
-	key   int
-	value Glyph
+	key   rune
+	value Metrics
 pub mut:
 	next  &LruListNode
 	prev  &LruListNode
@@ -32,13 +32,15 @@ fn promote(mut node LruListNode, mut front LruListNode) &LruListNode {
 }
 
 fn kill(mut node LruListNode) &LruListNode {
-	node.prev.next = voidptr(0)
+	if node.prev != voidptr(0) {
+		node.prev.next = voidptr(0)
+	}
 	prev := node.prev
 	unsafe { free(node) }
 	return prev
 }
 
-fn new_node(key int, value Glyph) &LruListNode {
+fn new_node(key rune, value Metrics) &LruListNode {
 	return &LruListNode{
 		key: key
 		value: value
@@ -48,27 +50,26 @@ fn new_node(key int, value Glyph) &LruListNode {
 }
 
 // lru cache implementation
-struct LruCache {
+struct MetricsCache {
 mut:
 	// max length of the cache
 	max_len int
 	// the hash of nodes
-	cache    map[int]&LruListNode
+	cache    map[rune]&LruListNode
 	// the list references
 	front   &LruListNode
 	back    &LruListNode
 }
 
-fn new_lru_cache(max_len int) LruCache {
-	return LruCache{
+fn new_lru_cache(max_len int) MetricsCache {
+	return MetricsCache{
 		max_len: max_len
 		front: voidptr(0)
 		back: voidptr(0)
 	}
 }
 
-fn (mut c LruCache) add(_key rune, value Glyph) {
-	key := int(_key)
+fn (mut c MetricsCache) add(key rune, value Metrics) {
 	if key in c.cache {
 		// key is already in here
 		// so promote it to the front of the list
@@ -94,8 +95,7 @@ fn (mut c LruCache) add(_key rune, value Glyph) {
 	}
 }
 
-fn (mut c LruCache) get(_key rune) ?Glyph {
-	key := int(_key)
+fn (mut c MetricsCache) get(key rune) ?Metrics {
 	if key in c.cache {
 		mut node := c.cache[key]
 		c.front = promote(mut node, mut c.front)

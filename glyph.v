@@ -1,6 +1,7 @@
 module main
 
-struct Metric {
+struct Metrics {
+pub:
 	// The A spacing of the character.
 	// The A spacing is the distance to add to the current position 
 	// before drawing the character glyph.
@@ -14,8 +15,12 @@ struct Metric {
 	c int
 }
 
-struct Glyph {
-	metric Metric
-
+struct GlyphData {
+pub:
+	metrics Metrics
 	data []byte
+}
+
+pub fn (g GlyphData) total_size() int {
+	return g.metrics.a + g.metrics.b + g.metrics.c
 }

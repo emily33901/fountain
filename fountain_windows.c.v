@@ -157,6 +157,7 @@ const (
 	proof_quality          = 2
 	nonantialiased_quality = 3
 	antialiased_quality    = 4
+	cleartype_quality      = 5
 )
 
 const (
@@ -189,13 +190,15 @@ const (
 	spi_setmouseclicklocktime    = 0x2009
 	spi_setmousesonar            = 0x101D
 	spi_setmousevanish           = 0x1021
+	spi_setfontsmoothing         = 0x004B
 )
 
-fn C.SystemParametersInfo()
+fn C.SystemParametersInfoW() bool
 
 const (
 	spif_updateinifile = 0x0001
 	spif_sendchange    = 0x0002
+	fe_fontsmoothingcleartype = 0x0002
 )
 
 fn create_dc() DrawContext {
@@ -243,7 +246,7 @@ struct Point {
 	y int
 }
 
-struct GlyphMetrics {
+struct WinGlyphMetrics {
 	black_box_x u32
 	black_box_y u32
 	glyph_origin Point
@@ -254,7 +257,13 @@ struct GlyphMetrics {
 fn C.SetBkColor()
 fn C.SetTextColor()
 fn C.SetBkMode()
-fn C.ExtTextOutW()
-fn C.MoveToEx()
+fn C.ExtTextOutW() bool
+fn C.MoveToEx() bool
 
 
+struct Rect {
+	left int
+	right int
+	top int
+	bottom int
+}
