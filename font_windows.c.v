@@ -102,8 +102,7 @@ fn (mut f Font) glyph_data(ch rune) ?GlyphData {
 	C.SelectObject(f.context, f.handle)
 	mut wide := f.width
 	mut tall := f.height
-	mat := default_mat2()
-	glyph_metrics := WinGlyphMetrics{}
+	// glyph_metrics := WinGlyphMetrics{}
 	ch16 := u16(ch)
 	C.SetBkColor(f.context, 0)
 	C.SetTextColor(f.context, 16777215) // 55 | (255 << 8) | (255 << 16)

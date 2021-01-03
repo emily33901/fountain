@@ -1,52 +1,88 @@
 module main
 
+
 // node in the list
-struct LruListNode {
+struct MetricsNode {
 pub:
 	key   rune
 	value Metrics
 pub mut:
-	next  &LruListNode
-	prev  &LruListNode
+	next  &MetricsNode = voidptr(0)
+	prev  &MetricsNode = voidptr(0)
 }
 
-fn promote(mut node LruListNode, mut front LruListNode) &LruListNode {
-	// remove ourselves from the list by tying
-	// our next to our prev and vice versa
+struct MetricsList {
+pub mut:
+	front &MetricsNode = voidptr(0)
+	back &MetricsNode = voidptr(0)
+}
+
+fn new_metrics_list() MetricsList {
+	return MetricsList {
+	}
+}
+
+fn (mut l MetricsList) remove(mut node MetricsNode) &MetricsNode {
 	mut next := node.next
 	mut prev := node.prev
+
 	// link prev to next if either of them exist
 	if next != voidptr(0) {
 		next.prev = prev
 	}
+
 	if prev != voidptr(0) {
 		prev.next = next
 	}
-	// put ourselves at the front
-	// and set oruselves as prev on it
-	node.next = front
-	if front != voidptr(0) {
-		front.prev = node
+
+	// update back if this node is the back
+	if voidptr(node) == voidptr(l.back) {
+		l.back = prev
 	}
+
+	// update front if this node is the front
+	if voidptr(node) == voidptr(l.front) {
+		l.front = next
+	}
+	
+	// remove any links that we might have
+	node.prev = voidptr(0)
+	node.next = voidptr(0)
+
 	return node
 }
 
-fn kill(mut node LruListNode) &LruListNode {
-	if node.prev != voidptr(0) {
-		node.prev.next = voidptr(0)
+fn (mut l MetricsList) add_front(mut node MetricsNode) {
+	if l.front != voidptr(0) {
+		l.front.prev = node
 	}
-	prev := node.prev
-	unsafe { free(node) }
-	return prev
+	node.next = l.front
+	l.front = node
+
+	// TODO hack
+	if l.back == voidptr(0) {
+		l.back = l.front
+	}
 }
 
-fn new_node(key rune, value Metrics) &LruListNode {
-	return &LruListNode{
+fn (mut l MetricsList) promote(mut node MetricsNode) {
+	l.remove(mut node)
+	l.add_front(mut node)
+}
+
+fn (mut l MetricsList) kill_back() {
+	node := l.remove(mut l.back)
+	unsafe { free(node) }
+}
+
+fn (mut l MetricsList) new_node(key rune, value Metrics) &MetricsNode {
+	mut n := &MetricsNode{
 		key: key
 		value: value
-		prev: voidptr(0)
-		next: voidptr(0)
 	}
+	l.add_front(mut n)
+
+	return n
 }
 
 // lru cache implementation
@@ -55,17 +91,15 @@ mut:
 	// max length of the cache
 	max_len int
 	// the hash of nodes
-	cache   map[rune]&LruListNode
-	// the list references
-	front   &LruListNode
-	back    &LruListNode
+	cache   map[rune]&MetricsNode
+
+	list MetricsList
 }
 
 fn new_metrics_cache(max_len int) MetricsCache {
 	return MetricsCache{
 		max_len: max_len
-		front: voidptr(0)
-		back: voidptr(0)
+		list: new_metrics_list()
 	}
 }
 
@@ -74,30 +108,26 @@ fn (mut c MetricsCache) add(key rune, value Metrics) {
 		// key is already in here
 		// so promote it to the front of the list
 		mut node := c.cache[key]
-		c.front = promote(mut node, mut c.front)
+		c.list.promote(mut node)
 	} else {
 		// key is not already in here
 		// so kill the last item (if we're too long) and put this value 
 		// at the front
 		if c.cache.len > c.max_len {
-			k := c.back.key
-			c.back = kill(mut c.back)
+			k := c.list.back.key
+			c.list.kill_back()
 			c.cache.delete_1(k)
 		}
 		// add the new value to the front
-		mut node := new_node(key, value)
-		c.front = promote(mut node, mut c.front)
+		node := c.list.new_node(key, value)
 		c.cache[key] = node
-		if c.cache.len == 1 {
-			c.back = node
-		}
 	}
 }
 
 fn (mut c MetricsCache) get(key rune) ?Metrics {
 	if key in c.cache {
 		mut node := c.cache[key]
-		c.front = promote(mut node, mut c.front)
+		c.list.promote(mut node)
 		return node.value
 	}
 	return none

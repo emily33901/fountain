@@ -4,10 +4,14 @@ import gg
 import gx
 import sokol.sapp
 import sokol.sgl
+import rand
+import os
+
+import util
 
 const (
-	win_width  = 600
-	win_height = 700
+	win_width  = 1280
+	win_height = 720
 )
 
 fn draw_image(ctx &gg.Context, x f32, y f32, width f32, height f32, sg_img &C.sg_image) {
@@ -39,44 +43,19 @@ fn draw_image(ctx &gg.Context, x f32, y f32, width f32, height f32, sg_img &C.sg
 	sgl.disable_texture()
 }
 
-struct Glyph {
-	GlyphData
-mut:
-	image C.sg_image
-}
-
 struct App {
 mut:
-	made_image bool
 	font       Font
-	gs         []Glyph
 	gg         &gg.Context
+	cache      util.TextureCache
+	frame      int
+	text ustring
 	ready      bool
 }
 
 fn init(mut app App) {
-	for mut g in app.gs {
-		mut img_desc := C.sg_image_desc{
-			width: app.font.width
-			height: app.font.height
-			num_mipmaps: 0
-			min_filter: .linear
-			mag_filter: .linear
-			//*****************************************
-			// usage: .dynamic        // DECOMENT THIS CRASH THE PROGRAM
-			//*****************************************
-			usage: .immutable
-			wrap_u: .clamp_to_edge
-			wrap_v: .clamp_to_edge
-			label: &byte(0)
-			d3d11_texture: 0
-		}
-		img_desc.content.subimage[0][0] = C.sg_subimage_content{
-			ptr: g.data.data
-			size: g.data.len
-		}
-		g.image = C.sg_make_image(&img_desc)
-	}
+	app.cache = util.new_texture_cache(4000, 4000)
+
 	app.ready = true
 }
 
@@ -84,184 +63,58 @@ fn draw_frame(mut app App) {
 	if !app.ready {
 		return
 	}
+	app.frame++
 	app.gg.begin()
 	sgl.defaults()
 	sgl.matrix_mode_projection()
 	sgl.ortho(0.0, f32(sapp.width()), f32(sapp.height()), 0.0, -1.0, 1.0)
 	sgl.c4b(0, 0, 0, 128) // black
-	mut offset := 10
-	mut y_offset := 10
-	mut i := 0
-	for glyph in app.gs {
-		draw_image(app.gg, offset, y_offset, app.font.width, app.font.height, glyph.image)
-		offset += glyph.total_size()
-		i++
-		if i % 10 == 0 {
-			y_offset += app.font.ascent
-			offset = 10
+
+	// load some more glyphs
+	mut misses := 0
+	for i := 0; i < 100; i++ {
+		s := app.text.at(rand.intn(app.text.len))
+		ch := rune(s.utf32_code())
+
+		unsafe {
+			s.free()
+		}
+
+		_ := app.cache.get(ch) or {
+			misses++
+			glyph_data := app.font.glyph_data(ch) or {
+				panic('Unable to get glyph data')
+			}
+
+			new_slot := app.cache.add(ch, app.font.width, app.font.height, glyph_data.data)
+
+			unsafe {
+				glyph_data.data.free()
+			}
+
+			new_slot
 		}
 	}
+	// update the texture
+	app.cache.flush()
+
+	draw_image(app.gg, 0, 0, app.cache.atlas.width, app.cache.atlas.height, app.cache.atlas.texture)
+
+	println('miss: $misses')
+
 	app.gg.end()
 }
 
 [console]
 fn main() {
-	mut font := new_font(height: 100, face_name: 'Tahoma') or { panic('failed to create font') }
-	chars := [
-		`㈀`,
-		`㈁`,
-		`㈂`,
-		`㈃`,
-		`㈄`,
-		`㈅`,
-		`㈆`,
-		`㈇`,
-		`㈈`,
-		`㈉`,
-		`㈊`,
-		`㈋`,
-		`㈌`,
-		`㈍`,
-		`㈎`,
-		`㈏`,
-		`㈐`,
-		`㈑`,
-		`㈒`,
-		`㈓`,
-		`㈔`,
-		`㈕`,
-		`㈖`,
-		`㈗`,
-		`㈘`,
-		`㈙`,
-		`㈚`,
-		`㈛`,
-		`㈜`,
-		`㈠`,
-		`㈡`,
-		`㈢`,
-		`㈣`,
-		`㈤`,
-		`㈥`,
-		`㈦`,
-		`㈧`,
-		`㈨`,
-		`㈩`,
-		`㈪`,
-		`㈫`,
-		`㈬`,
-		`㈭`,
-		`㈮`,
-		`㈯`,
-		`㈰`,
-		`㈱`,
-		`㈲`,
-		`㈳`,
-		`㈴`,
-		`㈵`,
-		`㈶`,
-		`㈷`,
-		`㈸`,
-		`㈹`,
-		`㈺`,
-		`㈻`,
-		`㈼`,
-		`㈽`,
-		`㈾`,
-		`㈿`,
-		`㉀`,
-		`㉁`,
-		`㉂`,
-		`㉃`,
-		`㉠`,
-		`㉡`,
-		`㉢`,
-		`㉣`,
-		`㉤`,
-		`㉥`,
-		`㉦`,
-		`㉧`,
-		`㉨`,
-		`㉩`,
-		`㉪`,
-		`㉫`,
-		`㉬`,
-		`㉭`,
-		`㉮`,
-		`㉯`,
-		`㉰`,
-		`㉱`,
-		`㉲`,
-		`㉳`,
-		`㉴`,
-		`㉵`,
-		`㉶`,
-		`㉷`,
-		`㉸`,
-		`㉹`,
-		`㉺`,
-		`㉻`,
-		`㉿`,
-		`㊀`,
-		`㊁`,
-		`㊂`,
-		`㊃`,
-		`㊄`,
-		`㊅`,
-		`㊆`,
-		`㊇`,
-		`㊈`,
-		`㊉`,
-		`㊊`,
-		`㊋`,
-		`㊌`,
-		`㊍`,
-		`㊎`,
-		`㊏`,
-		`㊐`,
-		`㊑`,
-		`㊒`,
-		`㊓`,
-		`㊔`,
-		`㊕`,
-		`㊖`,
-		`㊗`,
-		`㊘`,
-		`㊙`,
-		`㊚`,
-		`㊛`,
-		`㊜`,
-		`㊝`,
-		`㊞`,
-		`㊟`,
-		`㊠`,
-		`㊡`,
-	]
-	mut gs := []Glyph{cap: chars.len}
-	for c in chars {
-		data := font.glyph_data(rune(c)) or {
-			panic('Cant render this character')
-			return
-		}
-		g := Glyph{
-			GlyphData: data
-		}
-		gs << g
-	}
-	// test := gs[5]
-	// for i := 0; i < test.data.len; i += 4 {
-	// 	if i % (font.width*4) == 0 {
-	// 		println('')
-	// 	}
-	// 	if test.data[i+3] > 0 {
-	// 		print('x')
-	// 	} else {
-	// 		print(' ')
-	// 	}
-	// }
+	mut font := new_font(height: 50, face_name: 'Tahoma') or { panic('failed to create font') }
+
+	text := os.read_file('unicode.txt')?
+	ustr := text.ustring()
+
 	mut a := &App{
+		text: ustr
 		font: font
-		gs: gs
 		gg: voidptr(0)
 	}
 	a.gg = gg.new_context(
