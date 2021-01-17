@@ -6,6 +6,7 @@ import sokol.sapp
 import sokol.sgl
 import rand
 import os
+import encoding.utf8
 
 import util
 
@@ -47,17 +48,23 @@ struct App {
 mut:
 	font       Font
 	gg         &gg.Context
-	cache      util.TextureCache
 	frame      int
-	text ustring
+	text       string
 	ready      bool
+	renderer   SokolRender
+
+	key_down bool
+
+	first_line int
+	newline_pos []int
 }
 
 fn init(mut app App) {
-	app.cache = util.new_texture_cache(4000, 4000)
-
+	app.renderer = new_sokol_render(app.font)
 	app.ready = true
 }
+
+fn C.alloca()
 
 fn draw_frame(mut app App) {
 	if !app.ready {
@@ -70,53 +77,82 @@ fn draw_frame(mut app App) {
 	sgl.ortho(0.0, f32(sapp.width()), f32(sapp.height()), 0.0, -1.0, 1.0)
 	sgl.c4b(0, 0, 0, 128) // black
 
-	// load some more glyphs
-	mut misses := 0
-	for i := 0; i < 100; i++ {
-		s := app.text.at(rand.intn(app.text.len))
-		ch := rune(s.utf32_code())
+	if !app.key_down { // && app.frame % 4 == 0 {
+		app.first_line += 10
+		// app.first_line++
+	}
+	
+	misses_text := 'Misses: ${app.renderer.cache.cache_misses()}'
+	scrolling_text := if !app.key_down {
+		'Scrolling'
+	} else {
+		'Paused'
+	}
+	para_text := app.text[app.newline_pos[app.first_line % app.newline_pos.len] .. app.text.len]
 
+	defer {
 		unsafe {
-			s.free()
-		}
-
-		_ := app.cache.get(ch) or {
-			misses++
-			glyph_data := app.font.glyph_data(ch) or {
-				panic('Unable to get glyph data')
-			}
-
-			new_slot := app.cache.add(ch, app.font.width, app.font.height, glyph_data.data)
-
-			unsafe {
-				glyph_data.data.free()
-			}
-
-			new_slot
+			misses_text.free()
+			scrolling_text.free()
+			para_text.free()
 		}
 	}
-	// update the texture
-	app.cache.flush()
 
-	draw_image(app.gg, 0, 0, app.cache.atlas.width, app.cache.atlas.height, app.cache.atlas.texture)
+	app.renderer.draw_text_on_texture(app.gg, misses_text, 400, 0, sapp.width(), sapp.height())
+	app.renderer.draw_text_on_texture(app.gg, scrolling_text, 100, 0, sapp.width(), sapp.height())
+	
+	app.renderer.draw_text_on_texture(app.gg, para_text, 0, app.font.height, sapp.width(), sapp.height()) or {
+		panic('Failed to draw text!')
+	}
 
-	println('miss: $misses')
+	// update the cache
+	app.renderer.cache.flush()
 
 	app.gg.end()
 }
 
+fn key_down(code sapp.KeyCode, modifier sapp.Modifier, mut app App) {
+	println('$code')
+
+	app.key_down = !app.key_down
+}
+
 [console]
 fn main() {
-	mut font := new_font(height: 50, face_name: 'Tahoma') or { panic('failed to create font') }
+	mut font := new_font(height: 30, face_name: 'Tahoma') or { panic('failed to create font') }
 
-	text := os.read_file('unicode.txt')?
-	ustr := text.ustring()
+	// precache the newlines to make our test easier
+	text := os.read_file('text/kanji.txt')?
+	// ustr := text.ustring()
+
+	mut newline_pos := [0]
+
+	for i := 0; i < text.len; i++ {
+		// see if we are dealing with a unicode char
+		b := text[i]
+		ch_len := ((0xe5000000>>((b>>3) & 0x1e)) & 3)
+		
+		ch := if ch_len > 0 {
+			i += ch_len
+			rune(utf8.get_uchar(text,i-ch_len))
+		} else {
+			rune(b)
+		}
+
+		if ch == `\n` {
+			newline_pos << i+1
+		}
+	}
 
 	mut a := &App{
-		text: ustr
+		text: text
 		font: font
 		gg: voidptr(0)
+
+		newline_pos: newline_pos
+		first_line: 0
 	}
+
 	a.gg = gg.new_context(
 		width: win_width
 		height: win_height
@@ -126,7 +162,8 @@ fn main() {
 		user_data: a
 		bg_color: gx.black
 		frame_fn: draw_frame
+		keydown_fn: key_down
 		init_fn: init
 	)
-	a.gg.run()
+	a.gg.run() 
 }
