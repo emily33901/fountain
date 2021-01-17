@@ -90,13 +90,15 @@ mut:
 	cache   map[rune]&TextureSlotNode
 	list    TextureSlotList
 
+	misses  int
+
 pub mut:
 	atlas TextureAtlas
 }
 
-pub fn new_texture_cache(width int, height int) TextureCache {
+pub fn new_texture_cache(width int, height int, slots int) TextureCache {
 	return TextureCache{
-		atlas: new_texture_atlas(width, height)
+		atlas: new_texture_atlas(width, height, slots)
 		list: new_texture_slot_list()
 	}
 }
@@ -129,6 +131,9 @@ pub fn (mut c TextureCache) add(key rune, width int, height int, glyph []byte) S
 	node := c.list.new_node(key, slot)
 	c.cache[key] = node
 
+
+	c.misses++
+
 	return slot
 }
 
@@ -143,4 +148,11 @@ pub fn (mut c TextureCache) get(key rune) ?Slot {
 
 pub fn (mut c TextureCache) flush() {
 	c.atlas.flush()
+}
+
+pub fn (mut c TextureCache) cache_misses() int {
+	m := c.misses
+	c.misses = 0
+
+	return m
 }

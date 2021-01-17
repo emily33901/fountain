@@ -67,7 +67,7 @@ fn new_font(config FontConfig) ?Font {
 		width: tm.max_char_width
 		ascent: tm.ascent
 		handle: font_handle
-		cache: new_metrics_cache(1000)
+		cache: new_metrics_cache(10000)
 	}
 	new_font.create_bitmap() ?
 	return new_font
@@ -96,6 +96,10 @@ fn (mut f Font) metrics(ch rune) ?Metrics {
 	return none
 }
 
+fn (mut f Font) buffer_size(ch rune) ?int {
+	return 4 * f.height * f.width
+}
+
 fn (mut f Font) glyph_data(ch rune) ?GlyphData {
 	metrics := f.metrics(ch) ?
 	// make sure our font is active
@@ -116,15 +120,22 @@ fn (mut f Font) glyph_data(ch rune) ?GlyphData {
 	}
 	C.SetBkMode(f.context, transparent)
 	// copy the glyph from the bitmap
-	mut glyph := []byte{len: (wide * tall * 4), init: 0}
-	copy(glyph, f.bitmap.data)
-	// set the alphas properly
+
+	// TODO maybe copy here instead...
+
+	// mut glyph := []byte{len: (wide * tall * 4), init: 0}
+	// copy(glyph, f.bitmap.data)
+	// // set the alphas properly
+
+	mut glyph := f.bitmap.data
+
 	for i := 0; i < tall * wide * 4; i += 4 {
 		r := glyph[i + 0]
 		g := glyph[i + 1]
 		b := glyph[i + 2]
 		glyph[i + 3] = byte((f32(r) * 0.34) + (f32(g) * 0.55) + (f32(b) * 0.11))
 	}
+
 	return GlyphData{
 		metrics: metrics
 		data: glyph
