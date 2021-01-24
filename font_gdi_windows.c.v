@@ -4,7 +4,7 @@ import os
 
 fn C.GetTextMetrics() bool
 
-struct Font {
+struct GdiFont {
 mut:
 	context DrawContext
 	handle  Handle
@@ -12,11 +12,11 @@ mut:
 	width   int
 	height  int
 	ascent  int
-	// glyph cache
+	// metrics cache
 	cache   MetricsCache
 }
 
-struct FontConfig {
+struct GdiFontConfig {
 pub:
 	height           int
 	width            int
@@ -34,7 +34,7 @@ pub:
 	face_name        string
 }
 
-fn new_font(config FontConfig) ?Font {
+fn new_gdi_font(config GdiFontConfig) ?Font {
 	// if !C.SystemParametersInfoW(spi_setfontsmoothing, true, 0, spif_updateinifile | spif_sendchange) {
 	// 	println('Failed SystemParametersInfo')
 	// 		println('${os.get_error_msg(int(C.GetLastError()))}')
@@ -61,7 +61,7 @@ fn new_font(config FontConfig) ?Font {
 		// are which is pretty useless
 		return none
 	}
-	mut new_font := Font{
+	mut new_font := &GdiFont{
 		context: dc
 		height: tm.height
 		width: tm.max_char_width
@@ -70,17 +70,21 @@ fn new_font(config FontConfig) ?Font {
 		cache: new_metrics_cache(10000)
 	}
 	new_font.create_bitmap() ?
-	return new_font
+	return coerce_font(new_font)
 }
 
-fn (mut f Font) create_bitmap() ? {
+fn (mut f GdiFont) size() (int, int) {
+	return f.width, f.height
+}
+
+fn (mut f GdiFont) create_bitmap() ? {
 	f.bitmap = new_bitmap(context: f.context, width: f.width, height: f.height) or {
 		return error('Unable to create bitmap')
 	}
 	f.bitmap.@select()
 }
 
-fn (mut f Font) metrics(ch rune) ?Metrics {
+fn (mut f GdiFont) metrics(ch rune) ?Metrics {
 	if cached := f.cache.get(ch) {
 		return cached
 	}
@@ -96,17 +100,15 @@ fn (mut f Font) metrics(ch rune) ?Metrics {
 	return none
 }
 
-fn (mut f Font) buffer_size(ch rune) ?int {
-	return 4 * f.height * f.width
-}
-
-fn (mut f Font) glyph_data(ch rune) ?GlyphData {
+fn (mut f GdiFont) glyph_data(ch rune) ?GlyphData {
 	metrics := f.metrics(ch) ?
 	// make sure our font is active
 	C.SelectObject(f.context, f.handle)
 	mut wide := f.width
 	mut tall := f.height
 	// glyph_metrics := WinGlyphMetrics{}
+	// this cast down is really probably not needed
+	// but the functions technically take u16s
 	ch16 := u16(ch)
 	C.SetBkColor(f.context, 0)
 	C.SetTextColor(f.context, 16777215) // 55 | (255 << 8) | (255 << 16)
@@ -122,10 +124,13 @@ fn (mut f Font) glyph_data(ch rune) ?GlyphData {
 	// copy the glyph from the bitmap
 
 	// TODO maybe copy here instead...
+	// we dont really want to because its slow
+	// but we cant necessarily guarentee that this is 
+	// compatible with other future platforms
 
 	// mut glyph := []byte{len: (wide * tall * 4), init: 0}
 	// copy(glyph, f.bitmap.data)
-	// // set the alphas properly
+	// set the alphas properly
 
 	mut glyph := f.bitmap.data
 
@@ -140,4 +145,13 @@ fn (mut f Font) glyph_data(ch rune) ?GlyphData {
 		metrics: metrics
 		data: glyph
 	}
+}
+
+
+fn (mut f GdiFont) channels() int {
+	return 4
+}
+
+fn (mut f GdiFont) kern(ch1 rune, ch2 rune) int {
+	return 0
 }

@@ -9,6 +9,9 @@ pub:
 	width int
 	height int
 
+	slot_width int
+	slot_height int
+
 mut:
 	data []byte
 

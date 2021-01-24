@@ -1,61 +1,36 @@
 module util
 
 import sokol.sgl
+import sokol.gfx
 
 // TODO at some point we are going to need to lock texture slots
-
-pub struct Slot {
-pub:
-	// what page this slot is on
-	page &Page
-
-	// logical x, y, u, v
-	x int
-	y int
-	// x + width
-	u int
-	// y + height
-	v int
-
-	// texture x, y, u, v
-	tx f32
-	ty f32
-	// x + width
-	tu f32
-	// y + height
-	tv f32
-}
-
-pub fn new_slot(page &Page, x int, y int, u int, v int, tex_width int, tex_height int) Slot {
-	return Slot{
-		page: page
-		x: x
-		y: y
-		u: u
-		v: v
-
-		tx: (f32(x) / tex_width)
-		ty: (f32(y) / tex_height)
-		tu: (f32(u) / tex_width)
-		tv: (f32(v) / tex_height)
-	}
-}
 
 struct TextureAtlas {
 pub mut:
 	pages []Page
+	channels int
 }
 
-fn new_texture_atlas(width int, height int, slots int) TextureAtlas {
+fn new_texture_atlas(width int, height int, channels int, slots int) TextureAtlas {
 	mut pages := []Page{len: slots}
+
+	pixel_format := if channels == 4 {
+		gfx.PixelFormat.rgba8
+	} else if channels == 1 {
+		gfx.PixelFormat.r8
+	} else {
+		panic('Dont know what to do with $channels channels')
+		gfx.PixelFormat.@none
+	}
 
 	for i := 0; i < slots; i++ {
 		tex_desc := C.sg_image_desc {
 			width: width
 			height: height
 			num_mipmaps: 0
-			min_filter:   .linear
-			mag_filter:   .linear
+			min_filter:   .nearest
+			mag_filter:   .nearest
+			pixel_format: pixel_format
 			usage: .dynamic
 			wrap_u: .clamp_to_edge
 			wrap_v: .clamp_to_edge
@@ -65,7 +40,7 @@ fn new_texture_atlas(width int, height int, slots int) TextureAtlas {
 
 		pages[i] = Page{
 			texture: C.sg_make_image(&tex_desc)
-			data: []byte{len: (width * height * 4), init: 0}
+			data: []byte{len: (width * height * channels), init: 0}
 
 			width: width
 			height: height
@@ -74,6 +49,7 @@ fn new_texture_atlas(width int, height int, slots int) TextureAtlas {
 	
 	mut atlas := TextureAtlas {
 		pages: pages
+		channels: channels
 	}
 
 	return atlas
@@ -95,34 +71,33 @@ fn (mut t TextureAtlas) slot(width int, height int) ?Slot {
 }
 
 [direct_array_access]
-fn (mut t TextureAtlas) update(s Slot, data []byte) {
-	if data.len > ((s.u-s.x) * (s.v-s.y) * 4) {
-		panic('Data is too big for slot')
+fn (mut t TextureAtlas) update(s Slot, data_width int, data_height int, data []byte) {
+	if data.len > ((s.u-s.x) * (s.v-s.y) * t.channels) {
+		// add another page that is the right size
+		println('invalid size so youre going to get garbage')
 	}
 
 	page := s.page
 
 	// this is probably quite slow :(
-	page_width := page.width * 4
-	slot_end := s.u * 4
+	page_width := page.width * t.channels
+	slot_end := s.u * t.channels
 
-	slot_width := (s.u-s.x)*4
+	slot_width := (s.u-s.x)*t.channels
 
 	for j := 0; j < s.v-s.y; j++ {
 		// byte pos of our y axis
 		vert := (s.y + j) * page_width
 		// byte pos of our x axis
-		horiz := s.x * 4
+		horiz := s.x * t.channels
 		// and copy!
-		copy(s.page.data[vert+horiz..vert+slot_end], data[j*slot_width..(j+1)*slot_width])
+		copy(s.page.data[vert+horiz..vert+slot_end], data[j*data_width..(j+1)*data_height])
 	}
 }
 
 fn (mut t TextureAtlas) flush() {
 	for p in t.pages {
-		if !p.dirty {
-			continue
-		}
+		if !p.dirty { continue }
 
 		// update the texture in sokol
 		mut image_content := C.sg_image_content{}

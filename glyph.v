@@ -13,6 +13,11 @@ pub:
 	// The C spacing is the distance to add to the current position 
 	// to provide white space to the right of the character glyph.
 	c int
+
+	ascent int
+
+	width int
+	height int
 } 
 
 pub fn (m Metrics) total_size() int {
@@ -21,8 +26,8 @@ pub fn (m Metrics) total_size() int {
 
 struct GlyphData {
 pub:
-	metrics Metrics
-	data    []byte
+	metrics  Metrics
+	data     []byte
 }
 
 pub fn (g GlyphData) total_size() int {

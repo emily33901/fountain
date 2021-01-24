@@ -54,6 +54,7 @@ mut:
 	renderer   SokolRender
 
 	key_down bool
+	show_tex_map bool
 
 	first_line int
 	newline_pos []int
@@ -83,26 +84,32 @@ fn draw_frame(mut app App) {
 	}
 	
 	misses_text := 'Misses: ${app.renderer.cache.cache_misses()}'
+	app.renderer.draw_text_on_texture(app.gg, misses_text, 400, 0, sapp.width(), sapp.height())
 	scrolling_text := if !app.key_down {
 		'Scrolling'
 	} else {
 		'Paused'
 	}
-	para_text := app.text[app.newline_pos[app.first_line % app.newline_pos.len] .. app.text.len]
-
-	defer {
-		unsafe {
-			misses_text.free()
-			scrolling_text.free()
-			para_text.free()
-		}
-	}
-
-	app.renderer.draw_text_on_texture(app.gg, misses_text, 400, 0, sapp.width(), sapp.height())
 	app.renderer.draw_text_on_texture(app.gg, scrolling_text, 100, 0, sapp.width(), sapp.height())
-	
-	app.renderer.draw_text_on_texture(app.gg, para_text, 0, app.font.height, sapp.width(), sapp.height()) or {
-		panic('Failed to draw text!')
+
+		defer {
+			unsafe {
+				misses_text.free()
+				scrolling_text.free()
+			}
+		}
+
+	if !app.show_tex_map {
+		para_text := app.text[app.newline_pos[app.first_line % app.newline_pos.len] .. app.text.len]
+		app.renderer.draw_text_on_texture(app.gg, para_text, 0, 20, sapp.width(), sapp.height()) or {
+			panic('Failed to draw text!')
+		}
+
+		unsafe { para_text.free() }
+	} else {
+		// show the texture map
+		page := app.renderer.cache.atlas.pages[0]
+		draw_image(app.gg, 0, 0, page.width, page.height, page.texture)
 	}
 
 	// update the cache
@@ -114,15 +121,25 @@ fn draw_frame(mut app App) {
 fn key_down(code sapp.KeyCode, modifier sapp.Modifier, mut app App) {
 	println('$code')
 
-	app.key_down = !app.key_down
+	match code {
+		.m {
+			app.show_tex_map = !app.show_tex_map
+		}
+
+		else {
+			app.key_down = !app.key_down
+		}
+	}
+
 }
 
 [console]
 fn main() {
-	mut font := new_font(height: 30, face_name: 'Tahoma') or { panic('failed to create font') }
+	// mut font := new_gdi_font(height: 30, face_name: 'Tahoma') or { panic('failed to create font') }
+	mut font := new_stb_font(height: 24, font_file_name: 'ttf/Graduate-Regular.ttf')?
 
 	// precache the newlines to make our test easier
-	text := os.read_file('text/kanji.txt')?
+	text := os.read_file('text/unicode2.txt')?
 	// ustr := text.ustring()
 
 	mut newline_pos := [0]

@@ -13,9 +13,10 @@ pub mut:
 }
 
 fn new_sokol_render(f Font) SokolRender {
+	channels := f.channels()
 	return SokolRender{
 		font: f
-		cache: util.new_texture_cache(10 * f.width, 10 * f.height, 10)
+		cache: util.new_texture_cache(1024, 1024, channels, 10)
 	}
 }
 
@@ -28,7 +29,7 @@ fn (mut s SokolRender) glyph(ch rune) util.Slot {
 
 		// we dont need to free glyph_data.data here becuase it refers to the bitmap
 		// we allocated from windows
-		s.cache.add(ch, s.font.width, s.font.height, glyph_data.data)
+		s.cache.add(ch, glyph_data.metrics.width, glyph_data.metrics.height, glyph_data.data)
 	}
 
 	return slot
@@ -65,6 +66,8 @@ pub fn (mut s SokolRender) draw_text_on_texture(ctx &gg.Context, text string, in
 	defer {
 		sgl.disable_texture()
 	}
+
+	mut last_char := rune(0)
 	
 	for i := 0; i < text.len; i++ {
 		b := text[i]
@@ -78,10 +81,12 @@ pub fn (mut s SokolRender) draw_text_on_texture(ctx &gg.Context, text string, in
 			rune(b)
 		}
 
+		metrics := s.font.metrics(ch)?
+
 		// if we hit a newline then deal with it 
 		if ch == `\n` {
 			x = initial_x
-			y += s.font.height
+			y += metrics.height
 			if y > height {
 				return
 			}
@@ -89,19 +94,25 @@ pub fn (mut s SokolRender) draw_text_on_texture(ctx &gg.Context, text string, in
 			continue
 		}
 
-		metrics := s.font.metrics(ch)?
 		if x + metrics.total_size() > width {
 			x = initial_x
-			y += s.font.height
+			y += metrics.height
 			if y > height {
 				return
 			}
 		}
 
-		x += metrics.a
+		x += metrics.a + if last_char != 0 {
+			s.font.kern(last_char, ch)
+		} else {
+			0
+		}
+		real_y := y + metrics.ascent
 		glyph_slot := s.glyph(ch)
-		s.draw_image(ctx, glyph_slot, x, y)
+		s.draw_image(ctx, glyph_slot, x, real_y)
 		x += metrics.b + metrics.c
+
+		last_char = ch
 	}
 }
 

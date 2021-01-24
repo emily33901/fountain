@@ -1,6 +1,5 @@
 module main
 
-
 // node in the list
 struct MetricsNode {
 pub:

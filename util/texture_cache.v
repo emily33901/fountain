@@ -96,9 +96,9 @@ pub mut:
 	atlas TextureAtlas
 }
 
-pub fn new_texture_cache(width int, height int, slots int) TextureCache {
+pub fn new_texture_cache(width int, height int, channels int, slots int) TextureCache {
 	return TextureCache{
-		atlas: new_texture_atlas(width, height, slots)
+		atlas: new_texture_atlas(width, height, channels, slots)
 		list: new_texture_slot_list()
 	}
 }
@@ -125,12 +125,11 @@ pub fn (mut c TextureCache) add(key rune, width int, height int, glyph []byte) S
 		v
 	}
 
-	c.atlas.update(slot, glyph)
+	c.atlas.update(slot, width, height, glyph)
 
 	// add the new value to the front
 	node := c.list.new_node(key, slot)
 	c.cache[key] = node
-
 
 	c.misses++
 
