@@ -3,17 +3,19 @@ module util
 import sokol.sgl
 import sokol.gfx
 
-// TODO at some point we are going to need to lock texture slots
+// Texture atlas has 4 pages
+// one small atlas based around
+// one tall atlas based around
+// one wide atlas based around
+// and one atlas that can fit any size character
 
 struct TextureAtlas {
 pub mut:
-	pages []Page
+	pages [4]Page
 	channels int
 }
 
-fn new_texture_atlas(width int, height int, channels int, slots int) TextureAtlas {
-	mut pages := []Page{len: slots}
-
+fn new_texture_atlas(max_slot_width int, max_slot_height int, channels int) TextureAtlas {
 	pixel_format := if channels == 4 {
 		gfx.PixelFormat.rgba8
 	} else if channels == 1 {
@@ -23,32 +25,13 @@ fn new_texture_atlas(width int, height int, channels int, slots int) TextureAtla
 		gfx.PixelFormat.@none
 	}
 
-	for i := 0; i < slots; i++ {
-		tex_desc := C.sg_image_desc {
-			width: width
-			height: height
-			num_mipmaps: 0
-			min_filter:   .nearest
-			mag_filter:   .nearest
-			pixel_format: pixel_format
-			usage: .dynamic
-			wrap_u: .clamp_to_edge
-			wrap_v: .clamp_to_edge
-			label: &byte(0)
-			d3d11_texture: 0
-		}
-
-		pages[i] = Page{
-			texture: C.sg_make_image(&tex_desc)
-			data: []byte{len: (width * height * channels), init: 0}
-
-			width: width
-			height: height
-		} 
-	}
-	
 	mut atlas := TextureAtlas {
-		pages: pages
+		pages: [
+			new_page(1024, 1024, max_slot_width / 2, max_slot_height / 2, channels, pixel_format),
+			new_page(1024, 2096, max_slot_width / 2, max_slot_height, channels, pixel_format),
+			new_page(2096, 1024, max_slot_width, max_slot_height / 2, channels, pixel_format),
+			new_page(2096, 2096, max_slot_width, max_slot_height, channels, pixel_format),
+		]!
 		channels: channels
 	}
 
@@ -61,21 +44,33 @@ fn (mut t TextureAtlas) free() {
 	}
 }
 
-fn (mut t TextureAtlas) slot(width int, height int) ?Slot {
-	for mut p in t.pages {
-		if slot := p.slot(width, height) {
-			return slot
+fn (mut t TextureAtlas) slot(key rune, width int, height int) (&TextureSlotNode, rune) {
+	// find the appropriate page for this size character
+	mut page := t.find_page(width, height)
+
+	// now get a slot from it
+	node, removed := page.slot(key, width, height)
+
+	return node, removed
+}
+
+fn (mut t TextureAtlas) find_page(width int, height int) &Page {
+	for i, _ in t.pages {
+		p := &t.pages[i]
+		if width <= p.slot_width && height <= p.slot_height {
+			return p
 		}
 	}
-	return none
+
+	panic('Unable to find page (this shoud be impossible')
 }
 
 [direct_array_access]
 fn (mut t TextureAtlas) update(s Slot, data_width int, data_height int, data []byte) {
-	if data.len > ((s.u-s.x) * (s.v-s.y) * t.channels) {
-		// add another page that is the right size
-		println('invalid size so youre going to get garbage')
-	}
+	// if data.len > ((s.u-s.x) * (s.v-s.y) * t.channels) {
+	// 	// add another page that is the right size
+	// 	println('invalid size so youre going to get garbage')
+	// }
 
 	page := s.page
 
@@ -85,19 +80,21 @@ fn (mut t TextureAtlas) update(s Slot, data_width int, data_height int, data []b
 
 	slot_width := (s.u-s.x)*t.channels
 
-	for j := 0; j < s.v-s.y; j++ {
+	for j := 0; j < data_height; j++ {
 		// byte pos of our y axis
 		vert := (s.y + j) * page_width
 		// byte pos of our x axis
 		horiz := s.x * t.channels
 		// and copy!
-		copy(s.page.data[vert+horiz..vert+slot_end], data[j*data_width..(j+1)*data_height])
+		copy(page.data[vert+horiz..vert+slot_end], data[j*(data_width * t.channels)..(j+1)*(data_width * t.channels)])
 	}
 }
 
 fn (mut t TextureAtlas) flush() {
-	for p in t.pages {
+	for mut p in t.pages {
 		if !p.dirty { continue }
+
+		p.dirty = false
 
 		// update the texture in sokol
 		mut image_content := C.sg_image_content{}

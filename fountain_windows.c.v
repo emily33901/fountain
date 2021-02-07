@@ -209,6 +209,8 @@ fn C.GetCharWidth32W() bool
 
 fn C.GetCharABCWidthsW() bool
 
+fn C.GetKerningPairsW() bool
+
 struct Fixed {
 	fract i16
 	value i16

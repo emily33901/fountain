@@ -16,7 +16,7 @@ fn new_sokol_render(f Font) SokolRender {
 	channels := f.channels()
 	return SokolRender{
 		font: f
-		cache: util.new_texture_cache(1024, 1024, channels, 10)
+		cache: util.new_texture_cache(f.max_width(), f.max_height(), channels)
 	}
 }
 
@@ -29,7 +29,7 @@ fn (mut s SokolRender) glyph(ch rune) util.Slot {
 
 		// we dont need to free glyph_data.data here becuase it refers to the bitmap
 		// we allocated from windows
-		s.cache.add(ch, glyph_data.metrics.width, glyph_data.metrics.height, glyph_data.data)
+		s.cache.add(ch, glyph_data.metrics.width, glyph_data.metrics.height, s.font.max_width(), glyph_data.data)
 	}
 
 	return slot
@@ -84,22 +84,14 @@ pub fn (mut s SokolRender) draw_text_on_texture(ctx &gg.Context, text string, in
 		metrics := s.font.metrics(ch)?
 
 		// if we hit a newline then deal with it 
-		if ch == `\n` {
+		if ch == `\n` || x + metrics.total_size() > width {
 			x = initial_x
-			y += metrics.height
+			y += metrics.height + metrics.line_space + metrics.ascent
 			if y > height {
 				return
 			}
 
 			continue
-		}
-
-		if x + metrics.total_size() > width {
-			x = initial_x
-			y += metrics.height
-			if y > height {
-				return
-			}
 		}
 
 		x += metrics.a + if last_char != 0 {

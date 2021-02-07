@@ -92,7 +92,11 @@ fn (mut f GdiFont) metrics(ch rune) ?Metrics {
 	// so go get it now
 	// first try GetCharWidth32W
 	// then try GetCharABCWidthsW
-	m := Metrics{}
+	m := Metrics{
+		ascent: f.ascent
+		height: f.height
+		line_space: 0
+	}
 	if C.GetCharABCWidthsW(f.context, ch, ch, &m) || C.GetCharWidth32W(f.context, ch, ch, &m) {
 		f.cache.add(ch, m)
 		return m
@@ -152,6 +156,28 @@ fn (mut f GdiFont) channels() int {
 	return 4
 }
 
+struct KerningPair {
+	first u16
+	second u16
+	kern int
+}
+
 fn (mut f GdiFont) kern(ch1 rune, ch2 rune) int {
-	return 0
+	pair := KerningPair {
+		u16(ch1), u16(ch2), 0
+	}
+
+	if !C.GetKerningPairsW(f.context, 1, &pair) {
+		panic('asdasd')
+	}
+
+	return pair.kern
+}
+
+fn (f GdiFont) max_width() int {
+	return f.width
+}
+
+fn (f GdiFont) max_height() int {
+	return f.height
 }

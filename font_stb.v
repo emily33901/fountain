@@ -56,15 +56,18 @@ fn C.stbtt_GetCodepointHMetrics()
 fn C.stbtt_GetCodepointBitmapBox()
 fn C.stbtt_MakeCodepointBitmap()
 fn C.stbtt_GetCodepointKernAdvance() int
+fn C.stbtt_GetFontBoundingBox()
 
 // Stb truetype font
 struct StbFont {
 pub mut:
-	info C.stbtt_fontinfo 
+	info C.stbtt_fontinfo
 	scale f32
 	ascent int
 	descent int
 	line_gap int
+	max_width int
+	max_height int
 	cache   MetricsCache
 
 	bitmap []byte
@@ -96,7 +99,23 @@ pub fn new_stb_font(config StbFontConfig) ?Font {
 
 	C.stbtt_GetFontVMetrics(&font.info, &font.ascent, &font.descent, &font.line_gap)
 
-	font.bitmap = []byte{ len: 20 * 20, init: 0 }
+	println('$font.line_gap')
+	font.line_gap = int(font.line_gap * font.scale)
+
+	println('$font.ascent $font.descent')
+	
+	{
+		x := 0
+		y := 0
+		u := 0
+		v := 0
+		C.stbtt_GetFontBoundingBox(&font.info, &x, &y, &u, &v)
+
+		font.max_width = int((u - x) * font.scale)
+		font.max_height = int((v - y) * font.scale)
+	}
+
+	font.bitmap = []byte{ len: font.max_width * font.max_height, init: 0 }
 	font.info.userdata = font
 
 	return coerce_font(font)
@@ -129,10 +148,11 @@ pub fn (mut f StbFont) metrics(ch rune) ?Metrics {
 		c: 0
 
 		// TODO this name is wrong please pick a better one :)
-		ascent: int((f.ascent * f.scale) + y)
+		ascent: int(((f.ascent) * f.scale) + y)
 
 		width: (u - x)
 		height: (v - y)
+		line_space: f.line_gap - int(f.descent * f.scale)
 	}
 
 	f.cache.add(ch, m)
@@ -142,32 +162,11 @@ pub fn (mut f StbFont) metrics(ch rune) ?Metrics {
 pub fn (mut f StbFont) glyph_data(ch rune) ?GlyphData {
 	metrics := f.metrics(ch)?
 
-	width := if metrics.width > f.bitmap_width {
-		metrics.width
-	} else {
-		f.bitmap_width
-	}
-
-	height := if metrics.height > f.bitmap_height {
-		metrics.height
-	} else {
-		f.bitmap_height
-	}
-
-	if height != f.bitmap_height || width != f.bitmap_width {
-		unsafe {
-			f.bitmap.free()
-		}
-		f.bitmap = []byte { len: width * height }
-		f.bitmap_width = width
-		f.bitmap_height = height
-	}
-
 	unsafe {
 		C.memset(f.bitmap.data, 0, f.bitmap.len)
 	}
 
-	C.stbtt_MakeCodepointBitmap(&f.info, f.bitmap.data, metrics.width, metrics.height, width, f.scale, f.scale, ch)
+	C.stbtt_MakeCodepointBitmap(&f.info, f.bitmap.data, metrics.width, metrics.height, f.max_width, f.scale, f.scale, ch)
 
 	return GlyphData {
 		metrics: metrics
@@ -181,4 +180,12 @@ pub fn (mut f StbFont) channels() int {
 
 pub fn (mut f StbFont) kern(ch1 rune, ch2 rune) int {
 	return int(C.stbtt_GetCodepointKernAdvance(&f.info, ch1, ch2) * f.scale)
+}
+
+pub fn (mut f StbFont) max_width() int {
+	return f.max_width
+}
+
+pub fn (mut f StbFont) max_height() int {
+	return f.max_height
 }

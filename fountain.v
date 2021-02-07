@@ -7,6 +7,7 @@ import sokol.sgl
 import rand
 import os
 import encoding.utf8
+import math
 
 import util
 
@@ -55,6 +56,7 @@ mut:
 
 	key_down bool
 	show_tex_map bool
+	cur_tex_page int
 
 	first_line int
 	newline_pos []int
@@ -84,32 +86,49 @@ fn draw_frame(mut app App) {
 	}
 	
 	misses_text := 'Misses: ${app.renderer.cache.cache_misses()}'
-	app.renderer.draw_text_on_texture(app.gg, misses_text, 400, 0, sapp.width(), sapp.height())
+	println('${app.renderer.cache.cache_misses()}')
+	app.renderer.draw_text_on_texture(app.gg, misses_text, 400, 0, sapp.width(), sapp.height()) or {
+		panic('cannot draw text')
+	}
+	
 	scrolling_text := if !app.key_down {
 		'Scrolling'
 	} else {
 		'Paused'
 	}
-	app.renderer.draw_text_on_texture(app.gg, scrolling_text, 100, 0, sapp.width(), sapp.height())
 
-		defer {
-			unsafe {
-				misses_text.free()
-				scrolling_text.free()
-			}
+	app.renderer.draw_text_on_texture(app.gg, scrolling_text, 100, 0, sapp.width(), sapp.height()) or {
+		panic('cannot draw text')
+	}
+
+	defer {
+		unsafe {
+			misses_text.free()
+			scrolling_text.free()
 		}
+	}
 
 	if !app.show_tex_map {
 		para_text := app.text[app.newline_pos[app.first_line % app.newline_pos.len] .. app.text.len]
-		app.renderer.draw_text_on_texture(app.gg, para_text, 0, 20, sapp.width(), sapp.height()) or {
+		app.renderer.draw_text_on_texture(app.gg, para_text, app.font.max_height(), 20, sapp.width(), sapp.height()) or {
 			panic('Failed to draw text!')
 		}
 
 		unsafe { para_text.free() }
 	} else {
 		// show the texture map
-		page := app.renderer.cache.atlas.pages[0]
-		draw_image(app.gg, 0, 0, page.width, page.height, page.texture)
+		cur_page := int(math.abs(app.cur_tex_page % app.renderer.cache.atlas.pages.len))
+		page := app.renderer.cache.atlas.pages[cur_page]
+		draw_image(app.gg, app.font.max_width(), 0, page.width, page.height, page.texture)
+
+		page_number := '$cur_page'
+		app.renderer.draw_text_on_texture(app.gg, page_number, 0, 0, sapp.width(), sapp.height()) or {
+			panic('Failed to draw text!')
+		}
+
+		unsafe {
+			page_number.free()
+		}
 	}
 
 	// update the cache
@@ -125,6 +144,14 @@ fn key_down(code sapp.KeyCode, modifier sapp.Modifier, mut app App) {
 		.m {
 			app.show_tex_map = !app.show_tex_map
 		}
+		
+		.left {
+			app.cur_tex_page--
+		}
+
+		.right {
+			app.cur_tex_page++
+		}
 
 		else {
 			app.key_down = !app.key_down
@@ -136,10 +163,12 @@ fn key_down(code sapp.KeyCode, modifier sapp.Modifier, mut app App) {
 [console]
 fn main() {
 	// mut font := new_gdi_font(height: 30, face_name: 'Tahoma') or { panic('failed to create font') }
-	mut font := new_stb_font(height: 24, font_file_name: 'ttf/Graduate-Regular.ttf')?
+	// mut font := new_stb_font(height: 24, font_file_name: 'ttf/Graduate-Regular.ttf')?
+	// mut font := new_stb_font(height: 24, font_file_name: 'C:/Windows/Fonts/Tahoma.ttf')?
+	mut font := new_stb_font(height: 10, font_file_name: 'ttf/mononoki-Regular.ttf')?
 
 	// precache the newlines to make our test easier
-	text := os.read_file('text/unicode2.txt')?
+	text := os.read_file('text/macbeth.txt')?
 	// ustr := text.ustring()
 
 	mut newline_pos := [0]

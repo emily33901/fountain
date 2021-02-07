@@ -1,10 +1,11 @@
 module util
 
 pub struct Slot {
-pub:
+pub mut:
 	// what page this slot is on
-	page &Page
+	page Page
 
+pub:
 	// logical x, y, u, v
 	x int
 	y int

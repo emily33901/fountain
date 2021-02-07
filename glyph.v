@@ -18,6 +18,8 @@ pub:
 
 	width int
 	height int
+
+	line_space int
 } 
 
 pub fn (m Metrics) total_size() int {
